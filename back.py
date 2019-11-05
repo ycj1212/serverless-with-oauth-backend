@@ -191,12 +191,20 @@ class ElaAPI:
         if boolean_value == 1:
             ps = res["hits"]["hits"][0]["_source"]["password"]
             if passwd == ps:
-                print("verify")
+                # 검증 성공
+                print("verified")
             else:
                 print("failed")
+                return {
+                    'statusCode': 401,
+                    'body': ''
+                }
         else:
             print("not exist user")
-            
+            return {
+                'statusCode': 401,
+                'body': ''
+            }
         
 #한설꺼 끝
     def deleteIndex(cls,index_name):
@@ -219,12 +227,7 @@ es = ElaAPI()
 
 
 def handler(event):
-    '''
-    event = {
-        "userId": "...",
-        "password": "..."
-    }
-    '''
+    es.login(event['userId'], event['password'])
 
 if __name__ == "__main__":
     handler({'userId': 'yang', 'password': '1234'})
