@@ -3,27 +3,35 @@ import pprint as ppr
 import json
 import random
 from datetime import datetime,timedelta
+import jwt
 
 class ElaAPI:
-    es = Elasticsearch(hosts="13.125.255.30", port=9200)   # 객체 생성
+    es = Elasticsearch(hosts="13.209.19.222", port=9200)   # 객체 생성
     def allIndex(cls):
         # Elasticsearch에 있는 모든 Index 조회
         print (cls.es.cat.indices())
 
 #재헌이꺼 시작
     def grants_dataInsert(cls,username):
-        #문자열 셔플 user id
-        s = ''.join(random.sample(username,len(username)))
         #datetime init
         now = datetime.now()
         current = str(now.isoformat())
         next_current = str(now+timedelta(seconds=5))
-        print("gggg")
+        # 아이디 jwt 인코딩
+        encodedId = jwt.encode(
+            {
+                'userId': username,
+                'created': current
+            },
+            ''+username+current,
+            algorithm = 'HS256'
+        )
+        encodedId = str(encodedId)
         grants_data = {
-            "id" : s,
+            "id" : encodedId,
             "created" : current,
             "expired" : next_current
-            }
+        }
         res = cls.es.search(
             index = "grants",
             body = {
@@ -34,18 +42,23 @@ class ElaAPI:
                 }
             })
         boolean_value = res["hits"]["total"]["value"]
-        print("kkkk")
         if boolean_value == 0:
             res = cls.es.index(index="grants",doc_type="_doc",id=username,body=grants_data)
             print(res)
+            return {
+                'statusCode': 200,
+                'body': {
+                    'grants': encodedId
+                }
+            }
         else:
             print("user already exist")
     
     def grants_search(cls, indx=None):
         res = cls.es.search(
-        index = "grants",
-        body = {
-            "query":{"match_all":{}}
+            index = "grants",
+            body = {
+                "query":{"match_all":{}}
             }
         )
         data = json.dumps(res, ensure_ascii=False, indent=4)
@@ -124,7 +137,7 @@ class ElaAPI:
             print("not exist username for tokens")
 #철쭈꺼 끝
 #한설꺼 시작
-    def users_search(cls, indx=None):
+    def users_search(cls, index=None):
     # ===============
     # 데이터 조회 [전체]
     # ===============
@@ -178,6 +191,7 @@ class ElaAPI:
             print("not exist username for users")
 
     def login(cls,username,passwd):
+        # 아이디 존재 여부 탐색
         res = cls.es.search(
                 index = "users",
                 body = {
@@ -188,22 +202,27 @@ class ElaAPI:
                     }
                 })
         boolean_value = res["hits"]["total"]["value"]
+        # 아이디 O
         if boolean_value == 1:
             ps = res["hits"]["hits"][0]["_source"]["password"]
+            # 비밀번호 O
             if passwd == ps:
-                # 검증 성공
                 print("verified")
+                cls.grants_dataInsert(username)
+                return 
+            # 비밀번호 X
             else:
                 print("failed")
                 return {
                     'statusCode': 401,
-                    'body': ''
+                    'body': 'Incorrect password'
                 }
+        # 아이디 X
         else:
             print("not exist user")
             return {
                 'statusCode': 401,
-                'body': ''
+                'body': 'There is no userId'
             }
         
 #한설꺼 끝
@@ -217,9 +236,9 @@ es = ElaAPI()
 #es.users_delete("ko")
 #es.login("hanseol","1212412456")
 
-#es.grants_dataInsert("kohanseol")
+#es.grants_dataInsert("senkl")
 #es.grants_search()
-#es.grants_delete("pppp")
+#es.grants_delete('kohanseol')
 
 #es.tokens_dataInsert("yang")
 #es.tokens_search()
@@ -229,5 +248,5 @@ es = ElaAPI()
 def handler(event):
     es.login(event['userId'], event['password'])
 
-if __name__ == "__main__":
-    handler({'userId': 'yang', 'password': '1234'})
+#if __name__ == "__main__":
+#    handler({'userId': 'hanseol', 'password': '123456'})
