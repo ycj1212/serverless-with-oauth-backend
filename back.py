@@ -6,7 +6,7 @@ from datetime import datetime,timedelta
 import jwt
 
 class ElaAPI:
-    es = Elasticsearch(hosts="13.209.19.222", port=9200)   # 객체 생성
+    es = Elasticsearch(hosts="13.124.191.146", port=9200)   # 객체 생성
     def allIndex(cls):
         # Elasticsearch에 있는 모든 Index 조회
         print (cls.es.cat.indices())
@@ -52,7 +52,13 @@ class ElaAPI:
                 }
             }
         else:
-            print("user already exist")
+            print("Grants: user already exist")
+            return {
+                'statusCode': 200,
+                'body': {
+                    'grants': encodedId
+                }
+            }
     
     def grants_search(cls, indx=None):
         res = cls.es.search(
@@ -207,19 +213,19 @@ class ElaAPI:
             ps = res["hits"]["hits"][0]["_source"]["password"]
             # 비밀번호 O
             if passwd == ps:
-                print("verified")
-                cls.grants_dataInsert(username)
-                return 
+                print("Login: verified")
+                grantsId = cls.grants_dataInsert(username)
+                return grantsId
             # 비밀번호 X
             else:
-                print("failed")
+                print("Login: failed")
                 return {
                     'statusCode': 401,
                     'body': 'Incorrect password'
                 }
         # 아이디 X
         else:
-            print("not exist user")
+            print("Login: not exist user")
             return {
                 'statusCode': 401,
                 'body': 'There is no userId'
@@ -244,9 +250,9 @@ es = ElaAPI()
 #es.tokens_search()
 #es.tokens_delete("yggg")
 
-
 def handler(event):
-    es.login(event['userId'], event['password'])
+    # 보안 인증서 발급
+    grant = es.login(event['userId'], event['password'])
 
-#if __name__ == "__main__":
-#    handler({'userId': 'hanseol', 'password': '123456'})
+if __name__ == "__main__":
+    handler({'userId': 'hanseol', 'password': '123456'})
